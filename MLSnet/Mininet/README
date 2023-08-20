@@ -1,0 +1,82 @@
+Mininet based Emulation 
+
+1. Mininet Installation Note
+1) install Mininet by upgrade
+1) Only Mininet 2.3.0 support Python3
+2) Python Mininet module not found from the packages: SOLUTION: export PYTHONPATH=$PYTHONPATH:$HOME/mininet
+3) to start pox: move all the codes under the pox directory
+
+To start mininet :
+
+python main.py
+
+POX Controller 
+
+To start pox with our custom components
+
+python pox.py --verbose  openflow.spanning_tree --no-flood --hold-down discovery_relabel  l2_pairs_mls
+
+Two custom components
+1. Custom l2_pairs_mls
+  Learns host info during warm up period
+        Updates discovery with host info
+  Does default routing
+    Invokes API (per flow) - Packet In event      
+    Installs rules backwards from last hop and then forwards packet to first hop
+        Match involves source mac and dest mac
+  Maintains flow related DS
+    Active flows, blocked flows and waiting flows
+    Flows are uniquely identified based on source mac and dest mac addr
+    Levels are assigned and maintained here
+  Periodically invokes relabeling
+    Clears all rules all switches
+    Invokes heuristic
+    Reboots switches
+        Mimic rebooting using timer
+        If flow goes through rebooting switch we do not install rules 
+
+
+2. Custom Discovery component
+    Learns topology (switch-switch links)
+        Creates switch ds - Connection up/down events
+            Assigns level (Faux attestation mechanism?)
+        Maintains network graph DS as it listens to these events
+
+
+Agility 
+  Link failure  - configLinkStatus
+
+Recent bug fixes
+1. Discover component
+  Dest port incorrect - Affects rules
+2. L2_Pairs_MLS
+  a) Flow ID incorrect 
+    Affects everything
+  b) Rule installation
+    When traversing backwards prev and next node were interchanged - affects rules installed      
+  c) Packet In event handler
+    ICMP response was being treated as a new flow - We ignore these now   
+3. Lib relabeling
+    Switch info and host info global variables
+      They were not updated after relabeling 
+4. L2 Pairs MLS
+   Flow level method was random
+    Could lead to flows which could never be routed
+    Fixed this set to 5 min(src,dest)      
+
+
+POX MISC
+
+1. POX L2 Pairs with discover and spanning tree 
+
+    python3 pox.py --verbose  openflow.spanning_tree --no-flood --hold-down openflow.discovery  forwarding.l2_pairs
+
+    OR 
+
+    python3 pox.py --verbose  openflow.spanning_tree --no-flood --hold-down openflow.discovery  forwarding.l2_learning
+
+
+2. Default timeout used (Unsure if this matters for larger topos)
+
+3. Naming convention on Mininet end (extra params passed do not make a difference)
+   https://mailman.stanford.edu/pipermail/mininet-discuss/2014-August/004960.html                  
